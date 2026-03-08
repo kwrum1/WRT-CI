@@ -1,61 +1,66 @@
 #!/bin/bash
 
 ########################################
-# 内核 & eBPF 配置（必须最先定义）
+# 强制启用 eBPF + BTF（最终生效版）
 ########################################
 
-# 增加 eBPF 内核配置
-function cat_kernel_config() {
-  if [ -f "$1" ]; then
-    cat >> "$1" <<EOF
+function enable_kernel_ebpf() {
 
-# BPF
+  echo "===== Force Enable eBPF + BTF ====="
+
+  # 删除可能冲突的配置（避免被覆盖）
+  sed -i '/CONFIG_DEBUG_INFO/d' .config
+  sed -i '/CONFIG_DEBUG_INFO_BTF/d' .config
+  sed -i '/CONFIG_KERNEL_DEBUG_INFO/d' .config
+  sed -i '/CONFIG_KERNEL_DEBUG_INFO_BTF/d' .config
+
+  # ===== BPF 核心 =====
+  cat >> .config <<EOF
+
+# --- eBPF Core ---
 CONFIG_BPF=y
 CONFIG_BPF_SYSCALL=y
 CONFIG_BPF_JIT=y
 CONFIG_CGROUPS=y
 CONFIG_KPROBES=y
-CONFIG_NET_INGRESS=y
-CONFIG_NET_EGRESS=y
-CONFIG_NET_SCH_INGRESS=m
-CONFIG_NET_CLS_BPF=m
-CONFIG_NET_CLS_ACT=y
-CONFIG_BPF_STREAM_PARSER=y
-
-# Debug
-CONFIG_DEBUG_INFO=y
-CONFIG_DEBUG_INFO_BTF=y
-
-# Events
-CONFIG_KPROBE_EVENTS=y
 CONFIG_BPF_EVENTS=y
 
-# Scheduler / THP
-CONFIG_SCHED_CLASS_EXT=y
-CONFIG_TRANSPARENT_HUGEPAGE=y
-CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS=y
-EOF
-  fi
-}
-
-# eBPF 相关
-function cat_ebpf_config() {
-  if [ -f "$1" ]; then
-    cat >> "$1" <<EOF
-
-# eBPF Advanced
-CONFIG_DEVEL=y
+# --- BTF 必须项 ---
 CONFIG_KERNEL_DEBUG_INFO=y
 CONFIG_KERNEL_DEBUG_INFO_BTF=y
-CONFIG_KERNEL_CGROUPS=y
-CONFIG_KERNEL_CGROUP_BPF=y
-CONFIG_KERNEL_BPF_EVENTS=y
-CONFIG_BPF_TOOLCHAIN_HOST=y
+CONFIG_KERNEL_DEBUG_INFO_DWARF5=y
+
+# --- CO-RE 支持 ---
+CONFIG_KERNEL_BPF=y
+CONFIG_KERNEL_BPF_SYSCALL=y
+CONFIG_KERNEL_BPF_JIT=y
+
+# --- XDP ---
 CONFIG_KERNEL_XDP_SOCKETS=y
-CONFIG_PACKAGE_kmod-xdp-sockets-diag=y
+
 EOF
-  fi
+
 }
+
+########################################
+# 生成配置
+########################################
+
+function generate_config() {
+
+  # 合并基础配置
+  cat "$GITHUB_WORKSPACE/Config/${WRT_CONFIG}.txt" \
+      "$GITHUB_WORKSPACE/Config/GENERAL.txt" > .config
+
+  # 强制启用 eBPF + BTF
+  enable_kernel_ebpf
+
+  echo "===== eBPF/BTF Config Injected ====="
+
+}
+
+generate_config
+
 
 # skb 回收
 function enable_skb_recycler() {
