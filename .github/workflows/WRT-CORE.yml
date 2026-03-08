@@ -161,9 +161,13 @@ jobs:
       - name: Custom Settings
         run: |
           cd ./wrt/
-          
-          cat $GITHUB_WORKSPACE/Config/$WRT_CONFIG.txt >> .config
-          
+
+          if [[ "${WRT_CONFIG,,}" == *"test"* ]]; then
+            cat $GITHUB_WORKSPACE/Config/$WRT_CONFIG.txt >> .config
+          else
+            cat $GITHUB_WORKSPACE/Config/$WRT_CONFIG.txt $GITHUB_WORKSPACE/Config/GENERAL.txt >> .config
+          fi
+
           $GITHUB_WORKSPACE/Scripts/Settings.sh
 
           make defconfig -j$(nproc) && make clean -j$(nproc)
