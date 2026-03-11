@@ -62,7 +62,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Projects
-        uses: actions/checkout@main
+        uses: softprops/action-gh-release@v2
 
       - name: Initialization Environment
         env:
